@@ -1,0 +1,65 @@
+/* vim:set ft=css: */
+
+@import "~/.cache/wal/colors-rofi.rasi"
+
+* {
+	s-bgx: #2e2f3480;
+	s-bgy: #2e2f34c0;
+
+	background-color: #0000;
+	text-color: @s-fg75;
+	font: "Droid Sans Serif 12";
+}
+
+window {
+	background-color: @s-bg75;
+	width: 800px;
+	height: 500px;
+}
+
+mainbox {
+	padding: 5px;
+	border-radius: 3px;
+}
+
+textbox-prompt {
+	expand: false;
+	text-style: bold;
+	str: "――";
+	margin: 0px 0.3em;
+}
+
+prompt {
+	text-color: @s-fg50;
+}
+
+entry {
+	text-color: @s-fg;
+}
+
+inputbar {
+	background-color: @s-bgy;
+	padding: 8px;
+	children: [ textbox-prompt, entry, prompt, case-indicator ];
+}
+
+listview {
+	border: 0px 0;
+	padding: 1em 1em 0.5em;
+	border-color: @s-4;
+}
+
+element {
+	padding: 8px;
+	margin: 2px 0;
+	background-color: @s-bgx;
+}
+
+element.selected {
+	background-color: @s-8;
+	text-color: white;
+}
+
+button.selected {
+	text-color: white;
+}
