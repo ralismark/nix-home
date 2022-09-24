@@ -9,11 +9,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    vim = {
-      url = "src/vimfiles";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # zsh plugins
     mafredri-zsh-async = {
       url = "github:mafredri/zsh-async";
@@ -24,8 +19,15 @@
   outputs = { nixpkgs, home-manager, ... }@inputs:
     let
       system = "x86_64-linux";
-      pkgs = import nixpkgs { inherit system; };
-    in {
+      pkgs = import nixpkgs {
+        inherit system;
+      };
+    in rec {
+      apps.default = {
+        type = "app";
+        program = "";
+      };
+
       homeConfigurations.me = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
 

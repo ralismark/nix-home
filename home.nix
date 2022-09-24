@@ -8,12 +8,20 @@ let
     mkdir -p $out/bin
     ln -s ${path} $out/bin/$name
   '';
-  flake-default-package = flake: flake.outputs.packages.${pkgs.system}.default;
 in {
   imports = [
     ./sshfs-mounts
     ./zsh
     ./jupyter-ipython
+    ./trash-collect
+  ];
+
+  home.packages = [
+    nixpkgs-fmt
+    (pantheon.elementary-files.overrideAttrs (final: prev: {
+      mesonFlags = [ "-Dwith-zeitgeist=disabled" ];
+    }))
+    dfeet
   ];
 
   # Let Home Manager install and manage itself.
@@ -37,11 +45,6 @@ in {
   # paths it should manage.
   home.username = "timmy";
   home.homeDirectory = "/home/${home.username}";
-
-  home.packages = [
-    (flake-default-package inputs.vim)
-    nixpkgs-fmt
-  ];
 
   #
   # General Environment Config
@@ -69,6 +72,12 @@ in {
     enable = false; # TODO
     tray = false;
   };
+
+  # fortunes
+  home.file.".local/fortunes".source = ./fortunes;
+  home.file.".local/fortunes.dat".source = runCommand "fortunes.dat" { buildInputs = [ fortune ]; } ''
+    strfile ${./fortunes} $out
+  '';
 
   # tmux
   home.file.".tmux.conf".source = ./tmux.conf;

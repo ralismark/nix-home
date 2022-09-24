@@ -7,7 +7,8 @@ let
 in {
   programs.direnv = {
     enable = true;
-    enableZshIntegration = true;
+
+    nix-direnv.enable = true;
   };
 
   programs.zsh = rec {
@@ -53,7 +54,7 @@ in {
       setopt sh_word_split # for closer to posix
 
       # from https://unix.stackexchange.com/a/157773/319760
-      setopt auto_pushd pushd_minus cdable_vars pushd_silent
+      setopt auto_pushd pushd_minus pushd_silent
 
       ##
       ## other files
@@ -69,10 +70,6 @@ in {
 
       () {
           local fortune="$HOME/.local/fortunes"
-          if ! [[ "$fortune" -ot "$fortune.dat" ]]; then
-              strfile -s -c% "$fortune"
-          fi
-
           echo
           fortune "$fortune" | cowsay -n
       }
