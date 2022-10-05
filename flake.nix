@@ -14,6 +14,8 @@
       url = "github:mafredri/zsh-async";
       flake = false;
     };
+
+    nix-index-database.url = "github:Mic92/nix-index-database";
   };
 
   outputs = { nixpkgs, home-manager, ... }@inputs:
@@ -23,10 +25,12 @@
         inherit system;
       };
     in rec {
-      apps.default = {
+      apps.${system}.default = {
         type = "app";
-        program = "";
+        program = "${homeConfigurations.me.activationPackage}/activate";
       };
+
+      packages.${system}.default = homeConfigurations.me.activationPackage;
 
       homeConfigurations.me = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;

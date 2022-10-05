@@ -140,9 +140,12 @@ in {
         name = "async";
         src = inputs.mafredri-zsh-async;
       }
-      {
+      rec {
         name = "auto-venv";
-        src = pkgs.writeTextDir "auto-venv.plugin.zsh" (builtins.readFile ./auto-venv.plugin.zsh);
+        src = pkgs.runCommandLocal "${name}.plugin.zsh" {} ''
+          mkdir $out
+          cp ${./auto-venv.plugin.zsh} $out/${name}.plugin.zsh
+        '';
       }
     ];
   };

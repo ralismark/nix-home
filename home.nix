@@ -8,6 +8,15 @@ let
     mkdir -p $out/bin
     ln -s ${path} $out/bin/$name
   '';
+
+  lock = builtins.fromJSON (builtins.readFile ./flake.lock);
+
+  lock-inputs =
+    assert lib.asserts.assertMsg (lock.version == 7) "flake.lock version has changed!";
+    builtins.mapAttrs
+      (_: n: lock.nodes.${n})
+      lock.nodes.${lock.root}.inputs;
+
 in {
   imports = [
     ./sshfs-mounts
@@ -50,6 +59,28 @@ in {
   # General Environment Config
   #
 
+  nixpkgs.config.allowUnfree = true;
+  nix.package = pkgs.nixUnstable;
+  nix.registry.nixpkgs = {
+    # pin the system nixpkgs to what we use
+    from = {
+      id = "nixpkgs";
+      type = "indirect";
+    };
+    to = lock-inputs.nixpkgs.locked;
+  };
+  nix.registry.nixos-unstable = {
+    from = {
+      type = "github";
+      owner = "nixos";
+      repo = "nixpkgs";
+      ref = "nixos-unstable";
+    };
+    to = lock-inputs.nixpkgs.locked;
+  };
+
+  fonts.fontconfig.enable = true;
+
   gtk = {
     enable = true;
 
@@ -68,19 +99,25 @@ in {
     platformTheme = "gtk";
   };
 
-  services.gammastep = {
-    enable = false; # TODO
-    tray = false;
-  };
-
   # fortunes
   home.file.".local/fortunes".source = ./fortunes;
   home.file.".local/fortunes.dat".source = runCommand "fortunes.dat" { buildInputs = [ fortune ]; } ''
     strfile ${./fortunes} $out
   '';
 
+  services.gammastep = {
+    enable = true;
+    provider = "geoclue2";
+    tray = false;
+  };
+
   # tmux
   home.file.".tmux.conf".source = ./tmux.conf;
+
+  home.file.".cache/nix-index/files".source = inputs.nix-index-database.legacyPackages.${nixpkgs.system}.database;
+  programs.nix-index = {
+    enable = true;
+  };
 
   programs.alacritty = {
     # see https://github.com/alacritty/alacritty/blob/master/alacritty.yml

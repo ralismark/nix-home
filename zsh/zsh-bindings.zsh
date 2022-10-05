@@ -23,6 +23,7 @@
 bindkey ' ' magic-space # space
 bindkey '^ ' autosuggest-accept # c-space
 bindkey '^H' backward-kill-word # c-bs
+bindkey '^d' kill-whole-line
 
 # bindings
 zle-run() {
@@ -47,8 +48,6 @@ add-zsh-hook chpwd (){
 	fi
 }
 
-bindkey "\eOc" forward-word
-bindkey "\eOd" backward-word
 bindkey "^_" run-help
 
 _cd-up() { builtin cd .. && zle reset-prompt }
