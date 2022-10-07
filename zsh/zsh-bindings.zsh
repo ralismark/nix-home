@@ -112,6 +112,37 @@ _fzf-history() {
 zle -N _fzf-history
 bindkey "^r" _fzf-history
 
+_src-cd() {
+	local root
+	root=""
+	local candidate
+	for candidate in \
+		"$(df . --output=target | sed -n 2p)/src" \
+		"$(df . --output=target | sed -n 2p)/go/src" \
+		"$HOME/src"; do
+		if [ -d "$candidate" ]; then
+			root=$candidate
+			break
+		fi
+	done
+	[ -z "$root" ] && return
+
+	selected=$(
+		find "$root" -mindepth 3 -maxdepth 3 -printf '%P\n' |
+		fzf --height 10 --reverse --exact \
+			--no-sort --no-multi --no-info
+	)
+	local ret=$?
+	if [[ "$ret" == 0 ]]; then
+		builtin cd "$root/$selected"
+		zle reset-prompt
+	else
+		zle redisplay
+	fi
+}
+zle -N _src-cd
+bindkey "^h" _src-cd
+
 # TODO ranger-like cd. In quick-cd mode:
 # - h adds .. to current path (or strips one path element)
 # - j goes to next suggestion

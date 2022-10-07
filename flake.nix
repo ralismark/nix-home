@@ -24,7 +24,10 @@
       pkgs = import nixpkgs {
         inherit system;
       };
-    in rec {
+    in
+    rec {
+      formatter.${system} = pkgs.nixpkgs-fmt;
+
       apps.${system}.default = {
         type = "app";
         program = "${homeConfigurations.me.activationPackage}/activate";

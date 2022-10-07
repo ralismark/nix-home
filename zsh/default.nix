@@ -111,13 +111,13 @@ in {
       dcc = "clang $DFLAGS";
       "d++" = "clang++ -std=c++14 $DFLAGS";
 
-      home-manager-zsh = "ZDOTDIR=$(home-manager build --no-out-link)/home-files zsh";
-
       #
       # abbreviations
       #
-      sc = "systemctl"; uc = "systemctl --user";
-      jc = "journalctl"; ujc = "journalctl --user";
+      sc = "systemctl";
+      uc = "systemctl --user";
+      jc = "journalctl";
+      ujc = "journalctl --user";
       ll = "ls -Al";
 
       isatty = ''(){ script --return --quiet --flush --command "$(printf "%q " "$@")" /dev/null } '';
@@ -142,7 +142,7 @@ in {
       }
       rec {
         name = "auto-venv";
-        src = pkgs.runCommandLocal "${name}.plugin.zsh" {} ''
+        src = pkgs.runCommandLocal "${name}.plugin.zsh" { } ''
           mkdir $out
           cp ${./auto-venv.plugin.zsh} $out/${name}.plugin.zsh
         '';

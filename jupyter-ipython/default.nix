@@ -29,7 +29,8 @@ in {
     Service = {
       Type = "simple";
       ExecStart = builtins.concatStringsSep " " [
-        "/usr/bin/jupyter" "notebook"
+        "/usr/bin/jupyter"
+        "notebook"
         "--MappingKernelManager.cull_idle_timeout=3600"
         "--NotebookApp.open_browser=False"
         "--ServerApp.port=8889"

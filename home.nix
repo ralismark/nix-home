@@ -1,12 +1,16 @@
 { config, pkgs, inputs, ... }:
 
+# TODO make <nixpkgs> everywhere refer to a specific version, with possible overrides and stuff.
+# - adjust NIX_PATH to have the same nixpkgs
+# - nix flake registry with it
+
 with config;
 with pkgs;
 
 let
-  virtual2nix = name: path: pkgs.runCommand "virtual-${name}" {} ''
+  virtual2nix = name: path: pkgs.runCommand "virtual-${name}" { } ''
     mkdir -p $out/bin
-    ln -s ${path} $out/bin/$name
+    ln -s ${path} $out/bin/${name}
   '';
 
   lock = builtins.fromJSON (builtins.readFile ./flake.lock);
@@ -17,8 +21,10 @@ let
       (_: n: lock.nodes.${n})
       lock.nodes.${lock.root}.inputs;
 
-in {
+in
+{
   imports = [
+    ./desktop-environment
     ./sshfs-mounts
     ./zsh
     ./jupyter-ipython
@@ -105,12 +111,6 @@ in {
     strfile ${./fortunes} $out
   '';
 
-  services.gammastep = {
-    enable = true;
-    provider = "geoclue2";
-    tray = false;
-  };
-
   # tmux
   home.file.".tmux.conf".source = ./tmux.conf;
 
@@ -118,6 +118,18 @@ in {
   programs.nix-index = {
     enable = true;
   };
+
+  # TODO blocked on <https://github.com/nix-community/home-manager/pull/3309>
+  # systemd.user.slice.background-gopls = {
+  #   Unit.Description = "Go Language Server";
+  #
+  #   Slice = {
+  #     # Make sure it can't take up too much of main memory
+  #     MemoryHigh = "30%";
+  #     MemoryMax = "40%";
+  #     MemorySwapMax = "infinity";
+  #   };
+  # };
 
   programs.alacritty = {
     # see https://github.com/alacritty/alacritty/blob/master/alacritty.yml
@@ -205,44 +217,49 @@ in {
       ];
 
       # NOTE: We don't use or support vim mode
-      key_bindings = let
-        # vim-style key codes
-        mkKey = code:
-          let
-            bits = lib.strings.splitString "-" code;
-            key = lib.lists.last bits;
-            modchars = lib.lists.init bits;
-            modstrings = map (x:
-              builtins.getAttr x {
-                C = "Control";
-                S = "Shift";
-                A = "Alt";
-              }) modchars;
-            mods = builtins.concatStringsSep "|" modstrings;
-          in (if mods == "" then { inherit key; } else { inherit key mods; });
-        convert = opt@{ key, ... }: opt // mkKey key; # We override key
-      in map convert [
-        # clipboard things
-        { key = "Copy";     action = "Copy";           }
-        { key = "C-A-C";    action = "Copy";           }
-        { key = "C-A-V";    action = "Paste";          }
-        { key = "Paste";    action = "Paste";          }
-        { key = "S-Insert"; action = "PasteSelection"; }
+      key_bindings =
+        let
+          # vim-style key codes
+          mkKey = code:
+            let
+              bits = lib.strings.splitString "-" code;
+              key = lib.lists.last bits;
+              modchars = lib.lists.init bits;
+              modstrings = map
+                (x:
+                  builtins.getAttr x {
+                    C = "Control";
+                    S = "Shift";
+                    A = "Alt";
+                  })
+                modchars;
+              mods = builtins.concatStringsSep "|" modstrings;
+            in
+            (if mods == "" then { inherit key; } else { inherit key mods; });
+          convert = opt@{ key, ... }: opt // mkKey key; # We override key
+        in
+        map convert [
+          # clipboard things
+          { key = "Copy"; action = "Copy"; }
+          { key = "C-A-C"; action = "Copy"; }
+          { key = "C-A-V"; action = "Paste"; }
+          { key = "Paste"; action = "Paste"; }
+          { key = "S-Insert"; action = "PasteSelection"; }
 
-        # navigation
-        # QUESTION 2021-10-17 why do we have ~Alt?
-        { key = "S-PageUp";   mode = "~Alt"; action = "ScrollPageUp";   }
-        { key = "S-PageDown"; mode = "~Alt"; action = "ScrollPageDown"; }
-        { key = "S-Home";     mode = "~Alt"; action = "ScrollToTop";    }
-        { key = "S-End";      mode = "~Alt"; action = "ScrollToBottom"; }
+          # navigation
+          # QUESTION 2021-10-17 why do we have ~Alt?
+          { key = "S-PageUp"; mode = "~Alt"; action = "ScrollPageUp"; }
+          { key = "S-PageDown"; mode = "~Alt"; action = "ScrollPageDown"; }
+          { key = "S-Home"; mode = "~Alt"; action = "ScrollToTop"; }
+          { key = "S-End"; mode = "~Alt"; action = "ScrollToBottom"; }
 
-        # misc
-        { key = "C-Equals"; action = "IncreaseFontSize"; }
-        { key = "C-Minus";  action = "DecreaseFontSize"; }
-        { key = "C-Key0";   action = "ResetFontSize";    }
+          # misc
+          { key = "C-Equals"; action = "IncreaseFontSize"; }
+          { key = "C-Minus"; action = "DecreaseFontSize"; }
+          { key = "C-Key0"; action = "ResetFontSize"; }
 
-        # TODO search mode
-      ];
+          # TODO search mode
+        ];
     };
   };
 
