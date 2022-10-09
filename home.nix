@@ -1,12 +1,12 @@
-{ config, pkgs, inputs, ... }:
+{ config, pkgs, inputs, lib, ... }:
 
 # TODO make <nixpkgs> everywhere refer to a specific version, with possible overrides and stuff.
 # - adjust NIX_PATH to have the same nixpkgs
 # - nix flake registry with it
 
-with config;
-with pkgs;
+# TODO git
 
+with config;
 let
   virtual2nix = name: path: pkgs.runCommand "virtual-${name}" { } ''
     mkdir -p $out/bin
@@ -21,6 +21,17 @@ let
       (_: n: lock.nodes.${n})
       lock.nodes.${lock.root}.inputs;
 
+
+  pathlinks =
+    let
+      links = {
+        vim = "${home.homeDirectory}/src/github.com/ralismark/vimfiles/result/bin/vim";
+      };
+    in
+    pkgs.runCommandLocal "symlinks" { } ''
+      mkdir -p $out/bin
+      ${lib.concatStringsSep "\n" (lib.mapAttrsToList (name: path: "ln -s ${path} $out/bin/${name}") links)}
+    '';
 in
 {
   imports = [
@@ -32,11 +43,18 @@ in
   ];
 
   home.packages = [
-    nixpkgs-fmt
-    (pantheon.elementary-files.overrideAttrs (final: prev: {
+    pkgs.nixpkgs-fmt
+    (pkgs.pantheon.elementary-files.overrideAttrs (final: prev: {
       mesonFlags = [ "-Dwith-zeitgeist=disabled" ];
     }))
-    dfeet
+    pkgs.dfeet
+    pathlinks
+    pkgs.nomacs
+  ];
+
+  home.sessionPath = [
+    "$HOME/.local/bin"
+    "$HOME/src/github.com/ralismark/micro"
   ];
 
   # Let Home Manager install and manage itself.
@@ -105,10 +123,21 @@ in
     platformTheme = "gtk";
   };
 
+  # import all session vars into systemd
+  home.sessionVariables = {
+    EDITOR = "vim"; # TODO no path search
+    VISUAL = "vim";
+    MANPAGER = "vim +Man!";
+    BROWSER = "firefox";
+  };
+  systemd.user.sessionVariables = home.sessionVariables // {
+    PATH = "$PATH\${PATH:+:}${lib.concatStringsSep ":" home.sessionPath}";
+  };
+
   # fortunes
   home.file.".local/fortunes".source = ./fortunes;
-  home.file.".local/fortunes.dat".source = runCommand "fortunes.dat" { buildInputs = [ fortune ]; } ''
-    strfile ${./fortunes} $out
+  home.file.".local/fortunes.dat".source = pkgs.runCommand "fortunes.dat" {} ''
+    ${pkgs.fortune}/bin/strfile ${./fortunes} $out
   '';
 
   # tmux
@@ -119,17 +148,16 @@ in
     enable = true;
   };
 
-  # TODO blocked on <https://github.com/nix-community/home-manager/pull/3309>
-  # systemd.user.slice.background-gopls = {
-  #   Unit.Description = "Go Language Server";
-  #
-  #   Slice = {
-  #     # Make sure it can't take up too much of main memory
-  #     MemoryHigh = "30%";
-  #     MemoryMax = "40%";
-  #     MemorySwapMax = "infinity";
-  #   };
-  # };
+  systemd.user.slices.background-gopls = {
+    Unit.Description = "Go Language Server";
+
+    Slice = {
+      # Make sure it can't take up too much of main memory
+      MemoryHigh = "30%";
+      MemoryMax = "40%";
+      MemorySwapMax = "infinity";
+    };
+  };
 
   programs.alacritty = {
     # see https://github.com/alacritty/alacritty/blob/master/alacritty.yml
@@ -263,21 +291,50 @@ in
     };
   };
 
-  programs.rofi = {
-    enable = true;
-    package = virtual2nix "rofi" "/usr/bin/rofi";
+  programs.rofi =
+    let
+      rofi-files = pkgs.writeScript "rofi-files" ''
+        #!${pkgs.bash}/bin/bash
 
-    theme = ./rofi-theme.rasi;
+        get_entries() {
+          cd "$HOME" || exit
+          find -L /tmp -maxdepth 1 -print
+          find -L . ./Downloads ./work -maxdepth 2 -print
+          find -L ./Documents -print
+          find -L ./projects -path ./projects/pacman -prune -o -name ".?*" -prune -o -name "build" -prune -o -print
+          # find -L . -name ".?*" -prune -o -name "build" -prune -o -path ~/Android -prune -o -print
+        }
 
-    extraConfig = {
-      show-icons = true;
-      sidebar-mode = false;
+        if [ -n "$*" ]; then
+          # We're given a prompt
+          coproc xdg-open "$*" >/dev/null 2>&1
+        else
+          # Startup - populate entries
+          SAVE="$HOME/.cache/rofi-files"
+          if [ -f "$SAVE" ]; then
+            cat "$SAVE"
+          else
+            echo ""
+          fi
+          coproc get-entries > "$SAVE"
+        fi
+      '';
+    in
+    {
+      enable = true;
+      package = virtual2nix "rofi" "/usr/bin/rofi";
 
-      modi = "combi";
-      combi-modi = "drun,files:~/.local/bin/rofi-files";
-      combi-hide-mode-prefix = true;
+      theme = ./rofi-theme.rasi;
+
+      extraConfig = {
+        show-icons = true;
+        sidebar-mode = false;
+
+        modi = "combi";
+        combi-modi = "drun,files:${rofi-files}";
+        combi-hide-mode-prefix = true;
+      };
     };
-  };
 
   # programs.htop = {
   #   enable = false; # htop attempts to write to config file
@@ -296,4 +353,33 @@ in
   #     fields = with fields; [ PID NICE USER IO_RATE PERCENT_CPU PERCENT_MEM M_PSS M_PSSWP STATE TIME COMM ];
   #   } // l_meters // r_meters;
   # };
+
+  # Clone Organisation ------------------------------------
+
+  home.activation.clones =
+    let
+      root = "${home.homeDirectory}/src";
+      clones = {
+        "${root}/github.com/ralismark/micro" = "git@github.com:ralismark/micro.git";
+        "${root}/github.com/ralismark/nix-home" = "git@github.com:ralismark/nix-home.git";
+        "${root}/github.com/ralismark/vimfiles" = "git@github.com:ralismark/vimfiles.git";
+      };
+    in
+    lib.hm.dag.entryAfter [ "writeBoundary" ] (
+      lib.concatStringsSep "\n" (
+        lib.mapAttrsToList
+          (path: remote:
+            ''
+              if ! [ -e ${path} ]; then
+                mkdir -p ${path}
+                ${pkgs.git}/bin/git clone --recursive ${remote} ${path}
+              fi
+            ''
+          )
+          clones
+      )
+    );
+
+
+
 }

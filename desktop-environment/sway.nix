@@ -7,6 +7,12 @@ in
 {
   wayland.windowManager.sway = {
     enable = true;
+    # TODO on manjaro, using nixpkgs sway is really stuttery and has broken cursor
+    package = pkgs.runCommand "virtual-sway" {} ''
+      mkdir -p $out/bin
+      ln -s /usr/bin/sway $out/bin/sway
+      ln -s /usr/bin/swaymsg $out/bin/swaymsg
+    '';
     systemdIntegration = false; # we do our own custom systemd integration
 
     config =
@@ -27,6 +33,13 @@ in
           fn "8" "8" //
           fn "9" "9" //
           fn "0" "10";
+
+        per-direction = fn:
+          # key dir
+          fn "h" "left" //
+          fn "j" "down" //
+          fn "k" "up" //
+          fn "l" "right";
       in
       rec {
         modifier = "Mod4"; # Window key
@@ -44,28 +57,8 @@ in
           childBorder = "";
         };
 
-        input = {
-          "type:keyboard" = {
-            repeat_delay = "300";
-            repeat_rate = "70";
-          };
-          "1:1:AT_Translated_Set_2_keyboard" = {
-            xkb_options = "caps:escape";
-          };
-          "type:mouse" = {
-            left_handed = "enabled";
-          };
-          "type:touchpad" = {
-            dwt = "disabled";
-            natural_scroll = "enabled";
-            pointer_accel = "0.5";
-            tap = "enabled";
-          };
-          "type:pointer" = {
-            left_handed = "disabled";
-            pointer_accel = "0.5";
-          };
-        };
+        gaps.inner = 5;
+        gaps.outer = 0;
 
         keybindings = {
           "--locked ${modifier}+q" = ''exec "swaylock -f; systemctl suspend"'';
@@ -135,9 +128,35 @@ in
         } // per-workspace (key: ws: {
           "${modifier}+${key}" = "workspace ${ws}";
           "${modifier}+Ctrl+${key}" = "move container to workspace ${ws}";
+        }) // per-direction (key: dir: {
+          "${modifier}+${key}" = "focus ${dir}";
+          "${modifier}+Ctrl+${key}" = "move ${dir}";
         });
 
         modes = { }; # remove the default resize mode
+
+        input = {
+          "type:keyboard" = {
+            repeat_delay = "300";
+            repeat_rate = "70";
+          };
+          "1:1:AT_Translated_Set_2_keyboard" = {
+            xkb_options = "caps:escape";
+          };
+          "type:mouse" = {
+            left_handed = "enabled";
+          };
+          "type:touchpad" = {
+            dwt = "disabled";
+            natural_scroll = "enabled";
+            pointer_accel = "0.5";
+            tap = "enabled";
+          };
+          "type:pointer" = {
+            left_handed = "disabled";
+            pointer_accel = "0.5";
+          };
+        };
 
         output = {
           "*" = {
@@ -145,8 +164,10 @@ in
             adaptive_sync = "on";
           };
 
-          "DP-1".pos = "0 0";
-          "eDP-1".pos = "1920 0";
+          # laptop monitor
+          "Sharp Corporation 0x1420 0x00000000".pos = "1920 1440";
+          # home monitor
+          "BenQ Corporation BenQ G2420HD V7905125SL0".pos = "0 1440";
         };
 
         window.border = 1;
@@ -154,11 +175,7 @@ in
 
         startup = [
           {
-            command = "${pkgs.dbus}/bin/dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP XDG_SESSION_TYPE=wayland";
-          }
-          {
-            # systemd service support
-            command = "${pkgs.systemd}/bin/systemd-notify --ready";
+            command = "sh -c '${pkgs.dbus}/bin/dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP XDG_SESSION_TYPE=wayland; ${pkgs.systemd}/bin/systemd-notify --ready'";
             always = true;
           }
         ];
