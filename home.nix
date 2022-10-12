@@ -4,8 +4,6 @@
 # - adjust NIX_PATH to have the same nixpkgs
 # - nix flake registry with it
 
-# TODO git
-
 with config;
 let
   virtual2nix = name: path: pkgs.runCommand "virtual-${name}" { } ''
@@ -24,8 +22,11 @@ let
 
   pathlinks =
     let
+      tunnel-run = "${home.homeDirectory}/src/github.com/ralismark/micro/tunnel-run";
       links = {
         vim = "${home.homeDirectory}/src/github.com/ralismark/vimfiles/result/bin/vim";
+        # git = tunnel-run; # TODO
+        make = tunnel-run;
       };
     in
     pkgs.runCommandLocal "symlinks" { } ''
@@ -40,19 +41,19 @@ in
     ./zsh
     ./jupyter-ipython
     ./trash-collect
+    ./opengl.nix
   ];
 
   home.packages = [
-    pkgs.nixpkgs-fmt
-    (pkgs.pantheon.elementary-files.overrideAttrs (final: prev: {
-      mesonFlags = [ "-Dwith-zeitgeist=disabled" ];
-    }))
-    pkgs.dfeet
     pathlinks
-    pkgs.nomacs
-  ];
+  ] ++ (with pkgs; [
+    nixpkgs-fmt
+    pantheon.elementary-files
+    dfeet
+    nomacs
+  ]);
 
-  home.sessionPath = [
+  home.sessionPath = lib.mkBefore [
     "$HOME/.local/bin"
     "$HOME/src/github.com/ralismark/micro"
   ];
@@ -111,11 +112,17 @@ in
     font.name = "Droid Sans Regular";
     font.size = 13;
 
-    iconTheme.name = "Numix-Reborn";
-    theme.name = "Adapta-Nokto-Eta-Maia";
+    iconTheme = {
+      package = pkgs.numix-reborn-icon-themes;
+      name = "Numix-Reborn";
+    };
+    theme = {
+      package = pkgs.adapta-maia-theme;
+      name = "Adapta-Nokto-Eta-Maia";
+    };
 
     gtk3.bookmarks =
-      [ "file:///home/timmy/projects/pcon pcon" "file:///tmp tmp" "file:///scratch scratch" ];
+      [ "file://${home.homeDirectory}/projects/pcon pcon" "file:///tmp tmp" "file:///scratch scratch" ];
   };
 
   qt = {
@@ -134,19 +141,7 @@ in
     PATH = "$PATH\${PATH:+:}${lib.concatStringsSep ":" home.sessionPath}";
   };
 
-  # fortunes
-  home.file.".local/fortunes".source = ./fortunes;
-  home.file.".local/fortunes.dat".source = pkgs.runCommand "fortunes.dat" {} ''
-    ${pkgs.fortune}/bin/strfile ${./fortunes} $out
-  '';
-
-  # tmux
-  home.file.".tmux.conf".source = ./tmux.conf;
-
-  home.file.".cache/nix-index/files".source = inputs.nix-index-database.legacyPackages.${nixpkgs.system}.database;
-  programs.nix-index = {
-    enable = true;
-  };
+  # Misc ---------------------------------------------------------------------
 
   systemd.user.slices.background-gopls = {
     Unit.Description = "Go Language Server";
@@ -159,6 +154,131 @@ in
     };
   };
 
+  # fortunes
+  home.file.".local/fortunes".source = ./fortunes;
+  home.file.".local/fortunes.dat".source = pkgs.runCommand "fortunes.dat" {} ''
+    ${pkgs.fortune}/bin/strfile ${./fortunes} $out
+  '';
+
+  # Programs -----------------------------------------------------------------
+
+  # tmux
+  home.file.".tmux.conf".source = ./tmux.conf;
+
+  # nix-index
+  home.file.".cache/nix-index/files".source = inputs.nix-index-database.legacyPackages.${nixpkgs.system}.database;
+  programs.nix-index = {
+    enable = true;
+  };
+
+  # git
+  programs.git = let
+    idents = [
+      {
+        alias = "ac";
+        origin = "git@gitlab.com:autumn-compass*/**";
+        name = "Temmie Yao";
+        email = "temmie@autumncompass.com";
+      }
+      {
+        alias = "cse";
+        origin = "gitlab@gitlab.cse.unsw.edu.au:*/**";
+        name = "Temmie Yao";
+        email = "t.yao@unsw.edu.au";
+      }
+      {
+        alias = "github";
+        origin = "git@github.com:*/**";
+        name = "ralismark";
+        email = "13449732+ralismark@users.noreply.github.com";
+      }
+    ];
+  in {
+    enable = true;
+
+    aliases = {
+      default-branch = "symbolic-ref --short HEAD";
+      shallow-clone = "clone --recursive --depth 1";
+      dl = "clone --recursive";
+      co = "checkout";
+      ap = "add -p";
+      unap = "reset -p";
+
+      # TODO foresta
+      hist = "foresta --style=10 --svdepth=10 --graph-symbol-commit=● --graph-symbol-merge=▲ --graph-symbol-tip=∇  --date-order --reverse --no-status --boundary";
+      graph = "hist --all -n20";
+      grapha = "hist --all";
+
+      loggraph = "log --graph --format=format:'\t%C(yellow)%h%C(reset) - %C(green)(%ar)%C(reset) %s  %C(auto)%d%C(reset)' --all --date-order";
+      graph2 = "log --graph --format=format:'%C(yellow)%h%C(reset) - %C(blue)%aD%C(reset) %C(green)(%ar)%C(reset)%C(auto)%d%C(reset)%n          %C(white)%s%C(reset) %C(bold black)- %an%C(reset)' --all --date-order";
+
+      amend = "commit --amend --no-edit";
+      follow = "log -p --follow --";
+      shove = "push --force-with-lease";
+      clear = "reset HEAD";
+      info = "status -sb";
+      bleach = "!git reset --hard HEAD && git clean -xdff";
+
+      fu = "merge --ff-only @{u}";
+
+      standup = ''!git log --author="$(git config user.name)" --all --date-order --relative-date --format='%Cgreen%h %Cblue%ad %Creset%s%Cred%d%Creset' --since=yesterday'';
+
+      wdiff = "diff -w --color-words";
+      sdiff = "diff --cached";
+      bdiff = "!git diff $(git merge-base HEAD $(git default-branch))..HEAD";
+    } // lib.listToAttrs (map ({ alias, origin, name, email }: {
+      name = "id-${alias}";
+      value = ''!git config --local user.name "${name}" && git config --local user.email "${email}"'';
+    }) idents);
+
+    extraConfig = {
+      core = {
+        autoclrf = "input";
+        eol = "lf";
+        hideDotFiles = false;
+        symlinks = true;
+      };
+
+      advice.detachedHead = false;
+      credential.helper = "cache";
+
+      diff.algorithm = "patience";
+      diff.context = 10;
+      diff.wordRegex = "[^[:punct:][:space:]]+|[[:punct:][:space:]]";
+
+      fetch.prune = true;
+      fetch.pruneTags = true;
+
+      grep.lineNumber = true;
+
+      init.defaultBranch = "main";
+
+      interactive.singleKey = true;
+
+      pull.rebase = true;
+
+      push.default = "simple";
+      push.autoSetupRemote = true;
+
+      rebase.autoSquash = true;
+      rebase.autoStash = true;
+
+      user.useConfigOnly = true;
+
+      # replace urls e.g. for go
+      url."git@github.com:".insteadOf = "https://github.com/";
+      url."git@gitlab.com:".insteadOf = "https://gitlab.com/";
+      # but not for crates.io
+      url."https://github.com/rust-lang/crates.io-index".insteadOf = "https://github.com/rust-lang/crates.io-index";
+    };
+
+    includes =
+      (map ({ alias, origin, name, email }: {
+        condition = "hasconfig:remote.*.url:${origin}";
+        contents.user = { inherit name email; };
+      }) idents);
+  };
+
   programs.alacritty = {
     # see https://github.com/alacritty/alacritty/blob/master/alacritty.yml
     # last updated: 2021-10-17, for v0.9.0
@@ -169,9 +289,19 @@ in
     settings = {
       env.TERM = "xterm-256color";
 
-      import = [
-        "~/.cache/wal/colors-alacritty.yml" # colorscheme
-      ];
+      colors = {
+        primary.background = "#010016";
+        primary.foreground = "#ffffff";
+
+        normal.black = "#252525";
+        normal.red = "#ef6769";
+        normal.green = "#a6e22e";
+        normal.yellow = "#fd971f";
+        normal.blue = "#6495ed";
+        normal.magenta = "#deb887";
+        normal.cyan = "#b0c4de";
+        normal.white = "#dbdcdc";
+      };
 
       window.padding = {
         x = 2;
@@ -245,96 +375,73 @@ in
       ];
 
       # NOTE: We don't use or support vim mode
-      key_bindings =
-        let
-          # vim-style key codes
-          mkKey = code:
-            let
-              bits = lib.strings.splitString "-" code;
-              key = lib.lists.last bits;
-              modchars = lib.lists.init bits;
-              modstrings = map
-                (x:
-                  builtins.getAttr x {
-                    C = "Control";
-                    S = "Shift";
-                    A = "Alt";
-                  })
-                modchars;
-              mods = builtins.concatStringsSep "|" modstrings;
-            in
-            (if mods == "" then { inherit key; } else { inherit key mods; });
-          convert = opt@{ key, ... }: opt // mkKey key; # We override key
-        in
-        map convert [
+      key_bindings = [
           # clipboard things
           { key = "Copy"; action = "Copy"; }
-          { key = "C-A-C"; action = "Copy"; }
-          { key = "C-A-V"; action = "Paste"; }
+          { mods = "Control|Alt"; key = "C"; action = "Copy"; }
+          { mods = "Control|Alt"; key = "V"; action = "Paste"; }
           { key = "Paste"; action = "Paste"; }
-          { key = "S-Insert"; action = "PasteSelection"; }
+          { mods = "Shift"; key = "Insert"; action = "PasteSelection"; }
 
           # navigation
           # QUESTION 2021-10-17 why do we have ~Alt?
-          { key = "S-PageUp"; mode = "~Alt"; action = "ScrollPageUp"; }
-          { key = "S-PageDown"; mode = "~Alt"; action = "ScrollPageDown"; }
-          { key = "S-Home"; mode = "~Alt"; action = "ScrollToTop"; }
-          { key = "S-End"; mode = "~Alt"; action = "ScrollToBottom"; }
+          { mods = "Shift"; key = "PageUp"; mode = "~Alt"; action = "ScrollPageUp"; }
+          { mods = "Shift"; key = "PageDown"; mode = "~Alt"; action = "ScrollPageDown"; }
+          { mods = "Shift"; key = "Home"; mode = "~Alt"; action = "ScrollToTop"; }
+          { mods = "Shift"; key = "End"; mode = "~Alt"; action = "ScrollToBottom"; }
 
-          # misc
-          { key = "C-Equals"; action = "IncreaseFontSize"; }
-          { key = "C-Minus"; action = "DecreaseFontSize"; }
-          { key = "C-Key0"; action = "ResetFontSize"; }
+          # font sizing
+          { mods = "Control"; key = "Equals"; action = "IncreaseFontSize"; }
+          { mods = "Control"; key = "Minus"; action = "DecreaseFontSize"; }
+          { mods = "Control"; key = "Key0"; action = "ResetFontSize"; }
 
           # TODO search mode
         ];
     };
   };
 
-  programs.rofi =
-    let
-      rofi-files = pkgs.writeScript "rofi-files" ''
-        #!${pkgs.bash}/bin/bash
+  programs.rofi = {
+    enable = true;
+    package = virtual2nix "rofi" "/usr/bin/rofi";
 
-        get_entries() {
-          cd "$HOME" || exit
-          find -L /tmp -maxdepth 1 -print
-          find -L . ./Downloads ./work -maxdepth 2 -print
-          find -L ./Documents -print
-          find -L ./projects -path ./projects/pacman -prune -o -name ".?*" -prune -o -name "build" -prune -o -print
-          # find -L . -name ".?*" -prune -o -name "build" -prune -o -path ~/Android -prune -o -print
-        }
+    theme = ./rofi-theme.rasi;
 
-        if [ -n "$*" ]; then
-          # We're given a prompt
-          coproc xdg-open "$*" >/dev/null 2>&1
-        else
-          # Startup - populate entries
-          SAVE="$HOME/.cache/rofi-files"
-          if [ -f "$SAVE" ]; then
-            cat "$SAVE"
+    extraConfig = {
+      show-icons = true;
+      sidebar-mode = false;
+
+      modi = "combi";
+      combi-hide-mode-prefix = true;
+      combi-modi = let
+        rofi-files = pkgs.writeScript "rofi-files" ''
+          #!${pkgs.bash}/bin/bash
+
+          get_entries() {
+            cd "$HOME" || exit
+            find -L /tmp -maxdepth 1 -print
+            find -L . ./Downloads ./work -maxdepth 2 -print
+            find -L ./Documents -print
+            find -L ./projects -path ./projects/pacman -prune -o -name ".?*" -prune -o -name "build" -prune -o -print
+            # find -L . -name ".?*" -prune -o -name "build" -prune -o -path ~/Android -prune -o -print
+          }
+
+          if [ -n "$*" ]; then
+            # We're given a prompt
+            coproc xdg-open "$*" >/dev/null 2>&1
           else
-            echo ""
+            # Startup - populate entries
+            SAVE="$HOME/.cache/rofi-files"
+            if [ -f "$SAVE" ]; then
+              cat "$SAVE"
+            else
+              echo ""
+            fi
+            coproc get-entries > "$SAVE"
           fi
-          coproc get-entries > "$SAVE"
-        fi
-      '';
-    in
-    {
-      enable = true;
-      package = virtual2nix "rofi" "/usr/bin/rofi";
-
-      theme = ./rofi-theme.rasi;
-
-      extraConfig = {
-        show-icons = true;
-        sidebar-mode = false;
-
-        modi = "combi";
-        combi-modi = "drun,files:${rofi-files}";
-        combi-hide-mode-prefix = true;
-      };
+        '';
+      in "drun,files:${rofi-files}";
     };
+  };
 
   # programs.htop = {
   #   enable = false; # htop attempts to write to config file

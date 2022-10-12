@@ -40,7 +40,7 @@ in
     Service = {
       Type = "dbus";
       BusName = "org.freedesktop.Notifications";
-      ExecCondition = "/bin/sh -c '[ -n \"$WAYLAND_DISPLAY\" ]'";
+      ExecCondition = "/bin/sh -c '[ -n \"$WAYLAND_DISPLAY\" ]'"; # TODO nixify path?
       ExecStart = "${programs.mako.package}/bin/mako";
       ExecReload = "${programs.mako.package}/bin/makoctl reload";
     };

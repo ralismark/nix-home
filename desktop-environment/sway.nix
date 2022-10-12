@@ -168,6 +168,16 @@ in
           "Sharp Corporation 0x1420 0x00000000".pos = "1920 1440";
           # home monitor
           "BenQ Corporation BenQ G2420HD V7905125SL0".pos = "0 1440";
+          # left work monitor
+          "Dell Inc. DELL U2719D 5ZWQPS2" = {
+            mode = "2560x1440@59.951Hz";
+            pos = "0 0";
+          };
+          # right work monitor
+          "Dell Inc. DELL U2719D 6N6LLS2" = {
+            mode = "2560x1440@59.951Hz";
+            pos = "2560 0";
+          };
         };
 
         window.border = 1;
