@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-import asyncio
-import itertools, random
-import datetime as dt
 from pathlib import Path
+import asyncio
+import datetime as dt
+import itertools
+import os
+import random
+import sys
 
 _has_pandas = False
 try:
@@ -26,3 +29,8 @@ except ImportError:
 else:
     if _has_pandas:
         tqdm.pandas()
+
+try:
+    import plotly.express as px
+except ImportError:
+    pass

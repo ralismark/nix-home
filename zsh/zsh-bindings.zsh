@@ -70,36 +70,14 @@ _copy-buffer() { wl-copy "$BUFFER" && notify-send -t 5000 $'copied:\n'"$BUFFER" 
 zle -N _copy-buffer
 bindkey "^o" _copy-buffer
 
-_fzf-insert-file() {
-	# TODO pre-fill fzf with current LBUFFER argument
-	local selected
-	selected=$(
-		fzf </dev/tty --height 10 --reverse --exact \
-			--bind 'tab:accept-non-empty' \
-			--bind 'enter:execute(echo {})+abort'
-	)
-	local ret=$?
-	if [[ -n "$selected" ]]; then
-		if [[ "$ret" == 0 ]]; then
-			LBUFFER+="${(q)selected} "
-		elif [[ "$ret" == 130 ]]; then
-			# HACK using non-empty abort as "enter and run"
-			LBUFFER+="${(q)selected} "
-			zle accept-line
-		fi
-	fi
-	zle redisplay
-}
-zle -N _fzf-insert-file
-bindkey "^f" _fzf-insert-file
-
 _fzf-history() {
 	local selected
 	selected=$(
 		sed 's/^: [0-9]*:[0-9]*;//; :a; /\\$/ { s/\\$//; N; ba }; s/\n/\r/g' "$HISTFILE" |
 		fzf --height 10 --reverse --exact \
 			--no-sort --no-multi --no-info -q "$BUFFER" --tac \
-			--bind 'tab:accept-non-empty' |
+			--bind 'tab:accept-non-empty' \
+			--bind 'backward-eof:abort' |
 		tr '\r' '\n'
 	)
 	local ret=$?
@@ -130,7 +108,8 @@ _src-cd() {
 	selected=$(
 		find "$root" -mindepth 3 -maxdepth 3 -printf '%P\n' |
 		fzf --height 10 --reverse --exact \
-			--no-sort --no-multi --no-info
+			--no-sort --no-multi --no-info \
+			--bind 'backward-eof:abort'
 	)
 	local ret=$?
 	if [[ "$ret" == 0 ]]; then

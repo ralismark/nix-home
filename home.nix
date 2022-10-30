@@ -41,7 +41,6 @@ in
     ./zsh
     ./jupyter-ipython
     ./trash-collect
-    ./opengl.nix
   ];
 
   home.packages = [
@@ -58,27 +57,6 @@ in
     "$HOME/src/github.com/ralismark/micro"
   ];
 
-  # Let Home Manager install and manage itself.
-  programs.home-manager.enable = true;
-
-  # Automatically set some environment variables that will ease usage of
-  # software installed with nix on non-NixOS linux
-  targets.genericLinux.enable = true;
-
-  # This value determines the Home Manager release that your
-  # configuration is compatible with. This helps avoid breakage
-  # when a new Home Manager release introduces backwards
-  # incompatible changes.
-  #
-  # You can update Home Manager without changing this value. See
-  # the Home Manager release notes for a list of state version
-  # changes in each release.
-  home.stateVersion = "21.11";
-
-  # Home Manager needs a bit of information about you and the
-  # paths it should manage.
-  home.username = "timmy";
-  home.homeDirectory = "/home/${home.username}";
 
   #
   # General Environment Config
@@ -402,7 +380,7 @@ in
 
   programs.rofi = {
     enable = true;
-    package = virtual2nix "rofi" "/usr/bin/rofi";
+    package = pkgs.rofi-wayland;
 
     theme = ./rofi-theme.rasi;
 
@@ -413,9 +391,8 @@ in
       modi = "combi";
       combi-hide-mode-prefix = true;
       combi-modi = let
-        rofi-files = pkgs.writeScript "rofi-files" ''
+        get-entries = pkgs.writeScript "get-entries" ''
           #!${pkgs.bash}/bin/bash
-
           get_entries() {
             cd "$HOME" || exit
             find -L /tmp -maxdepth 1 -print
@@ -424,6 +401,10 @@ in
             find -L ./projects -path ./projects/pacman -prune -o -name ".?*" -prune -o -name "build" -prune -o -print
             # find -L . -name ".?*" -prune -o -name "build" -prune -o -path ~/Android -prune -o -print
           }
+          get_entries > "$1"
+        '';
+        rofi-files = pkgs.writeScript "rofi-files" ''
+          #!${pkgs.bash}/bin/bash
 
           if [ -n "$*" ]; then
             # We're given a prompt
@@ -436,7 +417,7 @@ in
             else
               echo ""
             fi
-            coproc get-entries > "$SAVE"
+            coproc ${get-entries} "$SAVE"
           fi
         '';
       in "drun,files:${rofi-files}";
@@ -488,5 +469,18 @@ in
     );
 
 
+  # Home Manager --------------------------------------------------------------
+
+  # This value determines the Home Manager release that your
+  # configuration is compatible with. This helps avoid breakage
+  # when a new Home Manager release introduces backwards
+  # incompatible changes.
+  #
+  # You can update Home Manager without changing this value. See
+  # the Home Manager release notes for a list of state version
+  # changes in each release.
+  home.stateVersion = "21.11";
+
+  home.homeDirectory = "/home/${home.username}";
 
 }

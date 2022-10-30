@@ -55,7 +55,7 @@ in
                 #"delay_connect"
                 # ssh opts
                 "ControlPath=none"
-                "ServerAliveInterval=15"
+                "ServerAliveInterval=5"
               ];
               LazyUnmount = true;
             };
