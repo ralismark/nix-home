@@ -140,13 +140,13 @@ in {
         name = "async";
         src = inputs.mafredri-zsh-async;
       }
-      rec {
-        name = "auto-venv";
-        src = pkgs.runCommandLocal "${name}.plugin.zsh" { } ''
-          mkdir $out
-          cp ${./auto-venv.plugin.zsh} $out/${name}.plugin.zsh
-        '';
-      }
+      # rec {
+      #   name = "auto-venv";
+      #   src = pkgs.runCommandLocal "${name}.plugin.zsh" { } ''
+      #     mkdir $out
+      #     cp ${./auto-venv.plugin.zsh} $out/${name}.plugin.zsh
+      #   '';
+      # }
     ];
   };
 }

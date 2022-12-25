@@ -43,6 +43,11 @@ in
     ./trash-collect
   ];
 
+  # home.sessionPath2 = lib.mkBefore [
+  #   "bar"
+  #   "baz"
+  # ];
+
   home.packages = [
     pathlinks
   ] ++ (with pkgs; [
@@ -52,10 +57,13 @@ in
     nomacs
   ]);
 
-  home.sessionPath = lib.mkBefore [
-    "$HOME/.local/bin"
+  home.sessionPath = [
     "$HOME/src/github.com/ralismark/micro"
   ];
+  # HACK until we have better sessionPath handling
+  home.sessionVariablesExtra = ''
+    export PATH="$HOME/.local/bin''${PATH:+:}$PATH"
+  '';
 
 
   #
@@ -88,6 +96,7 @@ in
     enable = true;
 
     font.name = "Droid Sans Regular";
+    font.package = pkgs.droid-fonts;
     font.size = 13;
 
     iconTheme = {
@@ -114,10 +123,19 @@ in
     VISUAL = "vim";
     MANPAGER = "vim +Man!";
     BROWSER = "firefox";
+    NIX_PATH = lib.concatStringsSep ":" [
+      "nixpkgs=${inputs.nixpkgs}"
+    ];
   };
-  systemd.user.sessionVariables = home.sessionVariables // {
-    PATH = "$PATH\${PATH:+:}${lib.concatStringsSep ":" home.sessionPath}";
-  };
+  systemd.user.sessionVariables =
+    (builtins.removeAttrs home.sessionVariables ["NIX_PATH"])
+    // {
+      PATH = "$HOME/.local/bin:$PATH\${PATH:+:}${lib.concatStringsSep ":" home.sessionPath}";
+    };
+  # `targets.genericLinux.enable = true` set `systemd.user.sessionVariables.NIX_PATH`, so we need to override it another way
+  xdg.configFile."environment.d/11-home-manager-overrides.conf".text = ''
+    NIX_PATH=${builtins.toString home.sessionVariables.NIX_PATH}
+  '';
 
   # Misc ---------------------------------------------------------------------
 
@@ -126,8 +144,8 @@ in
 
     Slice = {
       # Make sure it can't take up too much of main memory
-      MemoryHigh = "30%";
-      MemoryMax = "40%";
+      MemoryHigh = "20%";
+      MemoryMax = "30%";
       MemorySwapMax = "infinity";
     };
   };

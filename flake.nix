@@ -40,6 +40,7 @@
       packages.${system} = {
         default = homeConfigurations.me.activationPackage;
 
+        nixpkgs = pkgs;
         inherit (pkgs) numix-reborn-icon-themes adapta-maia-theme;
       };
 

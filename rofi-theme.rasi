@@ -1,6 +1,32 @@
 /* vim:set ft=css: */
 
-@import "~/.cache/wal/colors-rofi.rasi"
+* {
+	s-bg: #000000;
+	s-bg50: #00000080;
+	s-bg75: #000000c0;
+	s-bgx: #45454530;
+	s-bgy: #45454550;
+	s-fg: #ffffff;
+	s-fg50: #ffffff80;
+	s-fg75: #ffffffc0;
+
+	s-0:  #252525;
+	s-1:  #ef6769;
+	s-2:  #a6e22e;
+	s-3:  #fd971f;
+	s-4:  #6495ed;
+	s-5:  #deb887;
+	s-6:  #b0c4de;
+	s-7:  #dbdcdc;
+	s-8:  #454545;
+	s-9:  #ef6769;
+	s-10: #a6e22e;
+	s-11: #fd971f;
+	s-12: #6495ed;
+	s-13: #deb887;
+	s-14: #b0c4de;
+	s-15: #dbdcdc;
+}
 
 * {
 	s-bgx: #2e2f3480;
